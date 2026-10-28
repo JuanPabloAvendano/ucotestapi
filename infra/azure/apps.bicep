@@ -43,6 +43,9 @@ var hostApp = '${prefijo}-app'
 var hostKeycloak = '${prefijo}-keycloak'
 var hostFrontend = '${prefijo}-frontend'
 var hostRabbit = '${prefijo}-rabbitmq'
+// Nginx con proxy_pass variable resuelve con su propio resolver, que no usa los dominios de búsqueda: el gateway
+// necesita el nombre completo <app>.internal.<dominio del entorno>.
+var dominioInterno = 'internal.${entorno.properties.defaultDomain}'
 
 var identidadApps = {
   type: 'UserAssigned'
@@ -257,9 +260,9 @@ resource waf 'Microsoft.App/containerApps@2024-03-01' = {
           image: '${imagenes}/ucotest-gateway:${etiqueta}'
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
           env: [
-            { name: 'UCOTEST_APP_HOST', value: hostApp }
-            { name: 'UCOTEST_KEYCLOAK_HOST', value: hostKeycloak }
-            { name: 'UCOTEST_FRONTEND_HOST', value: hostFrontend }
+            { name: 'UCOTEST_APP_HOST', value: '${hostApp}.${dominioInterno}' }
+            { name: 'UCOTEST_KEYCLOAK_HOST', value: '${hostKeycloak}.${dominioInterno}' }
+            { name: 'UCOTEST_FRONTEND_HOST', value: '${hostFrontend}.${dominioInterno}' }
           ]
         }
       ]

@@ -9,7 +9,7 @@ REPO="${1:?uso: preparar.sh <dueño/repositorio> <correo>}"
 CORREO="${2:?uso: preparar.sh <dueño/repositorio> <correo>}"
 GRUPO="${UCOTEST_GRUPO:-ucotest-demo}"
 REGION="${UCOTEST_REGION:-brazilsouth}"
-PRESUPUESTO_USD="${UCOTEST_PRESUPUESTO_USD:-25}"
+PRESUPUESTO_USD="${UCOTEST_PRESUPUESTO_USD:-10}"
 
 suscripcion=$(az account show --query id -o tsv)
 inquilino=$(az account show --query tenantId -o tsv)
