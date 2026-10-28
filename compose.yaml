@@ -137,7 +137,7 @@ services:
       org.springframework.boot.ignore: "true"
 
   api-gateway:
-    image: nginx:1.30.6-alpine
+    image: nginx:1.31.0-alpine
     depends_on:
       - frontend
       - keycloak
