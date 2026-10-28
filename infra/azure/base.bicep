@@ -47,6 +47,8 @@ resource boveda 'Microsoft.KeyVault/vaults@2023-07-01' = {
     tenantId: subscription().tenantId
     sku: { family: 'A', name: 'standard' }
     enableRbacAuthorization: true
+    // apps.bicep pasa la clave de PostgreSQL con getSecret(): ARM solo puede leerla si la bóveda lo permite.
+    enabledForTemplateDeployment: true
     softDeleteRetentionInDays: 7
   }
 }

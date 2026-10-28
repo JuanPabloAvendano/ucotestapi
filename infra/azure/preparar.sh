@@ -42,13 +42,24 @@ appId=$(az ad app list --display-name "$nombreApp" --query '[0].appId' -o tsv)
 [ -n "$appId" ] || appId=$(az ad app create --display-name "$nombreApp" --query appId -o tsv)
 az ad sp show --id "$appId" -o none 2>/dev/null || az ad sp create --id "$appId" -o none
 spId=$(az ad sp show --id "$appId" --query id -o tsv)
-if [ -z "$(az ad app federated-credential list --id "$appId" --query "[?name=='github-azure'].name" -o tsv)" ]; then
-  az ad app federated-credential create --id "$appId" -o none --parameters "{
+# Los repositorios creados desde el 15-jul-2026 firman el token OIDC con el subject inmutable
+# repo:<dueño>@<id-dueño>/<repo>@<id-repo>:...; se arma con los ids que da `gh` (si no hay gh, el formato antiguo).
+sujetoRepo="$REPO"
+if command -v gh >/dev/null && ids=$(gh api "repos/$REPO" --jq '"\(.owner.login)@\(.owner.id)/\(.name)@\(.id)"' 2>/dev/null); then
+  sujetoRepo="$ids"
+fi
+credencial="{
     \"name\": \"github-azure\",
     \"issuer\": \"https://token.actions.githubusercontent.com\",
-    \"subject\": \"repo:${REPO}:environment:azure\",
+    \"subject\": \"repo:${sujetoRepo}:environment:azure\",
     \"audiences\": [\"api://AzureADTokenExchange\"]}"
+sujetoActual=$(az ad app federated-credential list --id "$appId" --query "[?name=='github-azure'].subject" -o tsv)
+if [ -z "$sujetoActual" ]; then
+  az ad app federated-credential create --id "$appId" -o none --parameters "$credencial"
+elif [ "$sujetoActual" != "repo:${sujetoRepo}:environment:azure" ]; then
+  az ad app federated-credential update --id "$appId" --federated-credential-id github-azure -o none --parameters "$credencial"
 fi
+echo "  subject: repo:${sujetoRepo}:environment:azure"
 
 echo "5/5 Permisos, solo sobre el grupo de recursos"
 # Contributor crea los recursos; User Access Administrator, las asignaciones de rol de base.bicep;
