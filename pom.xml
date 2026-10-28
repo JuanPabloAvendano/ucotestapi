@@ -28,7 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>27</java.version>
-		<spring-modulith.version>2.1.1</spring-modulith.version>
+		<spring-modulith.version>2.1.2</spring-modulith.version>
 		<!-- Spring Cloud 2026.0 (Boot 4.1) aún está en RC; se usa la línea GA 2025.1 (Q-10, decisión técnica menor en ESPEC §8). -->
 		<spring-cloud.version>2025.1.4</spring-cloud.version>
 		<!-- Spring Modulith 2.1.1 trae ArchUnit 1.4.2, que no lee clases de Java 27 (major 71) y deja el arranque sin clases. -->
