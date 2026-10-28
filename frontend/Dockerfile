@@ -6,6 +6,6 @@ RUN npm ci
 COPY . .
 RUN npm run type-check && npm run build
 
-FROM nginx:1.30.6-alpine
+FROM nginx:1.31.0-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=construccion /app/dist /usr/share/nginx/html
