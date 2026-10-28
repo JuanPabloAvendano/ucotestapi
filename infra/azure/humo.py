@@ -27,12 +27,14 @@ abrir = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(tarro), S
 
 
 def pedir(url, datos=None, cabeceras=None, metodo=None):
+    # Las cabeceras se devuelven sin pasar a dict: en Azure el proxy de Container Apps las manda en minúsculas
+    # (`location`) y el objeto de urllib las busca sin distinguir mayúsculas.
     req = urllib.request.Request(url, data=datos, headers=cabeceras or {}, method=metodo)
     try:
         r = abrir(req)
-        return r.status, dict(r.headers), r.read().decode()
+        return r.status, r.headers, r.read().decode()
     except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers), e.read().decode()
+        return e.code, e.headers, e.read().decode()
 
 
 verificador = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b'=').decode()
