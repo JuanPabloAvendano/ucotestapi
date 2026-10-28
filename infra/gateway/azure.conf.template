@@ -1,0 +1,36 @@
+# API Gateway en Azure Container Apps (A-25): mismas rutas que default.conf, otros destinos.
+# Corre junto al WAF en la misma app y escucha en 8081; el WAF le reenvía por localhost.
+# Cada destino es una app con ingreso interno: el ingreso de Container Apps enruta por el encabezado Host, así que
+# se deja el Host del destino (proxy_pass con variable) y el host público viaja en X-Forwarded-Host.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+map $http_x_forwarded_proto $esquema_original {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
+server {
+    listen 8081;
+    client_max_body_size 64k;
+
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $esquema_original;
+    proxy_set_header X-Forwarded-Host $http_host;
+
+    location /api/ {
+        set $destino http://${UCOTEST_APP_HOST};
+        proxy_pass $destino;
+    }
+
+    location /auth/ {
+        set $destino http://${UCOTEST_KEYCLOAK_HOST};
+        proxy_pass $destino;
+        proxy_buffer_size 16k;
+        proxy_buffers 8 16k;
+    }
+
+    location / {
+        set $destino http://${UCOTEST_FRONTEND_HOST};
+        proxy_pass $destino;
+    }
+}

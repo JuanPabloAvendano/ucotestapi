@@ -1,0 +1,59 @@
+# Revisión de dependencias en PR y escaneo de imágenes con Trivy (ESPEC Q-17).
+name: dependencias
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '41 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  lista-de-imagenes:
+    name: imágenes del compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      imagenes: ${{ steps.lista.outputs.imagenes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Las etiquetas salen del compose (Q-2) para escanear exactamente lo que se despliega;
+      # la imagen propia (Jib) no está en el registro y se excluye.
+      - id: lista
+        run: |
+          imagenes=$(docker compose --profile demo config --images | grep -v '^ucotestapi' | sort -u \
+            | python3 -c 'import sys, json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))')
+          echo "imagenes=$imagenes" >> "$GITHUB_OUTPUT"
+
+  trivy:
+    name: trivy · ${{ matrix.imagen }}
+    needs: lista-de-imagenes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        imagen: ${{ fromJSON(needs.lista-de-imagenes.outputs.imagenes) }}
+    steps:
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.imagen }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table

@@ -1,0 +1,161 @@
+{
+  "realm": "ucotest",
+  "enabled": true,
+  "displayName": "UCO · ucotest",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "DOCENTE",
+        "description": "Registra calificaciones de sus grupos"
+      },
+      {
+        "name": "ESTUDIANTE",
+        "description": "Recibe calificaciones"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "ucotest-frontend",
+      "name": "Frontend Vue",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "${UCOTEST_URL_PUBLICA}/*"
+      ],
+      "webOrigins": [
+        "${UCOTEST_URL_PUBLICA}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${UCOTEST_URL_PUBLICA}/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "5b6f6c1e-2a0d-4b7e-9c1a-0d6c7b8a9e01",
+      "username": "carlos",
+      "enabled": true,
+      "email": "carlos@ucotest.local",
+      "emailVerified": true,
+      "firstName": "Carlos",
+      "lastName": "Restrepo",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UCOTEST_CLAVE_DEMO}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "DOCENTE"
+      ]
+    },
+    {
+      "id": "5b6f6c1e-2a0d-4b7e-9c1a-0d6c7b8a9e11",
+      "username": "ana",
+      "enabled": true,
+      "email": "ana@ucotest.local",
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Gómez",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UCOTEST_CLAVE_DEMO}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ESTUDIANTE"
+      ]
+    },
+    {
+      "id": "5b6f6c1e-2a0d-4b7e-9c1a-0d6c7b8a9e12",
+      "username": "andres",
+      "enabled": true,
+      "email": "andres@ucotest.local",
+      "emailVerified": true,
+      "firstName": "Andrés",
+      "lastName": "Pérez",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UCOTEST_CLAVE_DEMO}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ESTUDIANTE"
+      ]
+    },
+    {
+      "id": "5b6f6c1e-2a0d-4b7e-9c1a-0d6c7b8a9e13",
+      "username": "beatriz",
+      "enabled": true,
+      "email": "beatriz@ucotest.local",
+      "emailVerified": true,
+      "firstName": "Beatriz",
+      "lastName": "Lopera",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UCOTEST_CLAVE_DEMO}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ESTUDIANTE"
+      ]
+    },
+    {
+      "id": "5b6f6c1e-2a0d-4b7e-9c1a-0d6c7b8a9e14",
+      "username": "david",
+      "enabled": true,
+      "email": "david@ucotest.local",
+      "emailVerified": true,
+      "firstName": "David",
+      "lastName": "Ríos",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UCOTEST_CLAVE_DEMO}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ESTUDIANTE"
+      ]
+    },
+    {
+      "id": "5b6f6c1e-2a0d-4b7e-9c1a-0d6c7b8a9e15",
+      "username": "elena",
+      "enabled": true,
+      "email": "elena@ucotest.local",
+      "emailVerified": true,
+      "firstName": "Elena",
+      "lastName": "Mejía",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${UCOTEST_CLAVE_DEMO}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ESTUDIANTE"
+      ]
+    }
+  ]
+}

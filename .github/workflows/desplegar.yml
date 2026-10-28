@@ -1,0 +1,48 @@
+# Despliegue en Azure (H5.2): después de un ci en verde sobre main, o a mano. Entra a Azure por OIDC con la
+# credencial federada del environment azure (sin contraseñas guardadas) y corre infra/azure/desplegar.sh.
+name: desplegar
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: desplegar-azure
+  cancel-in-progress: false
+
+jobs:
+  azure:
+    name: azure · base, imágenes, apps y prueba de humo
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: azure
+    env:
+      ETIQUETA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.ETIQUETA }}
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '27'
+          cache: maven
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: desplegar
+        run: infra/azure/desplegar.sh
+        env:
+          UCOTEST_GRUPO: ${{ vars.AZURE_RESOURCE_GROUP }}
+          UCOTEST_ETIQUETA: ${{ env.ETIQUETA }}

@@ -1,0 +1,173 @@
+# Infraestructura de S1 (A-25, A-41, Q-2, Q-4, Q-18). Dos modos:
+#   desarrollo: `docker compose up -d` levanta todo menos el backend, que corre desde Eclipse en el puerto 8081.
+#   demo:       `./mvnw -DskipTests jib:dockerBuild` y luego `docker compose --profile demo up` (backend en el compose).
+# Los secretos los genera vault-init al azar y viven en OpenBao; ninguno queda en el repositorio (Q-18).
+# OpenBao corre en modo desarrollo (en memoria): para empezar de cero, `docker compose --profile demo down -v`.
+
+x-secretos: &secretos
+  type: volume
+  source: secretos
+  read_only: true
+
+services:
+  vault:
+    image: openbao/openbao:2.7.1
+    entrypoint: ["/bin/sh", "/infra/vault/servidor.sh"]
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    volumes:
+      - ./infra/vault:/infra/vault:ro
+      # El vault ve todo el volumen: crea su token raíz antes de que existan los subdirectorios de los demás.
+      - secretos:/run/secretos
+    ports:
+      - "127.0.0.1:8200:8200"
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  vault-init:
+    image: openbao/openbao:2.7.1
+    entrypoint: ["/bin/sh", "/infra/vault/inicializar.sh"]
+    depends_on:
+      vault:
+        condition: service_healthy
+    volumes:
+      - ./infra/vault:/infra/vault:ro
+      - secretos:/run/secretos
+    restart: "no"
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  postgres:
+    image: postgres:18.6-alpine
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_DB: ucotest
+      POSTGRES_USER: ucotest
+      POSTGRES_PASSWORD_FILE: /run/secretos/postgres/password
+    volumes:
+      - { <<: *secretos, target: /run/secretos/postgres, volume: { subpath: postgres } }
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "ucotest", "-d", "ucotest"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  rabbitmq:
+    image: rabbitmq:4.4.0-alpine
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    entrypoint: ["/bin/sh", "-c", "set -a && . /run/secretos/rabbitmq/rabbitmq.env && set +a && exec docker-entrypoint.sh rabbitmq-server"]
+    volumes:
+      - { <<: *secretos, target: /run/secretos/rabbitmq, volume: { subpath: rabbitmq } }
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    # Lee del vault (renderizado por vault-init) la clave del administrador y la de demo de los usuarios del realm.
+    entrypoint: ["/bin/bash", "-c", "set -a && . /run/secretos/keycloak/keycloak.env && set +a && exec /opt/keycloak/bin/kc.sh start-dev --import-realm"]
+    environment:
+      KC_HTTP_RELATIVE_PATH: /auth
+      # Issuer único detrás del gateway (A-27, Q-5); las claves se descargan por la red interna.
+      KC_HOSTNAME: ${UCOTEST_URL_PUBLICA:-http://localhost:8080}/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      UCOTEST_URL_PUBLICA: ${UCOTEST_URL_PUBLICA:-http://localhost:8080}
+    volumes:
+      - ./infra/keycloak/realm-ucotest.json:/opt/keycloak/data/import/realm-ucotest.json:ro
+      - { <<: *secretos, target: /run/secretos/keycloak, volume: { subpath: keycloak } }
+    healthcheck:
+      # La imagen no trae curl: se pregunta por /dev/tcp al puerto de gestión.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  app:
+    image: ucotestapi:local
+    profiles: [demo]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+      UCOTEST_DB_URL: jdbc:postgresql://postgres:5432/ucotest
+      UCOTEST_VAULT_URI: http://vault:8200
+      UCOTEST_URL_PUBLICA: ${UCOTEST_URL_PUBLICA:-http://localhost:8080}
+      UCOTEST_JWK_SET_URI: http://keycloak:8080/auth/realms/ucotest/protocol/openid-connect/certs
+      # RabbitMQ se usa desde S4; mientras tanto no cuenta para la salud de la app.
+      MANAGEMENT_HEALTH_RABBIT_ENABLED: "false"
+    volumes:
+      # Contiene el archivo spring.cloud.vault.token, que Spring lee con configtree (Q-18).
+      - { <<: *secretos, target: /run/secretos/app, volume: { subpath: app } }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  frontend:
+    image: ucotestapi-frontend:local
+    build: ./frontend
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  api-gateway:
+    image: nginx:1.30.6-alpine
+    depends_on:
+      - frontend
+      - keycloak
+    volumes:
+      - ./infra/gateway/default.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  waf:
+    image: owasp/modsecurity-crs:4.30.0-nginx-alpine-202610180210
+    depends_on:
+      - api-gateway
+    environment:
+      BACKEND: http://api-gateway:8080
+      PORT: "8080"
+      # Modo bloqueo con paranoia 1 (Q-6); el endurecimiento fino queda en S5.
+      MODSEC_RULE_ENGINE: "On"
+      BLOCKING_PARANOIA: "1"
+    volumes:
+      - ./infra/waf/exclusiones-antes-de-crs.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+    ports:
+      - "127.0.0.1:8080:8080"
+    labels:
+      org.springframework.boot.ignore: "true"
+
+volumes:
+  # En memoria: los secretos renderizados no tocan el disco.
+  secretos:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
