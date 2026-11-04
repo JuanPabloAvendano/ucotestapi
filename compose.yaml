@@ -11,7 +11,7 @@ x-secretos: &secretos
 
 services:
   vault:
-    image: openbao/openbao:2.7.1
+    image: openbao/openbao:2.7.2
     entrypoint: ["/bin/sh", "/infra/vault/servidor.sh"]
     environment:
       BAO_ADDR: http://127.0.0.1:8200
@@ -30,7 +30,7 @@ services:
       org.springframework.boot.ignore: "true"
 
   vault-init:
-    image: openbao/openbao:2.7.1
+    image: openbao/openbao:2.7.2
     entrypoint: ["/bin/sh", "/infra/vault/inicializar.sh"]
     depends_on:
       vault:
