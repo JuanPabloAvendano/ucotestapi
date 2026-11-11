@@ -75,7 +75,7 @@ services:
       org.springframework.boot.ignore: "true"
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8.1
+    image: quay.io/keycloak/keycloak:26.8.2-1
     depends_on:
       vault-init:
         condition: service_completed_successfully
