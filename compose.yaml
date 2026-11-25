@@ -149,7 +149,7 @@ services:
       org.springframework.boot.ignore: "true"
 
   waf:
-    image: owasp/modsecurity-crs:4.30.0-nginx-alpine-202610180210
+    image: owasp/modsecurity-crs:4-nginx-alpine-202611190211
     depends_on:
       - api-gateway
     environment:
